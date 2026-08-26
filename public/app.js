@@ -319,11 +319,14 @@ window.addEventListener("message", (event) => {
   if (message.event === "export") {
     try {
       if (message.format === "xml") {
-        const exportedXml = decodeXmlExportPayload(message.data, message.xml);
-        const diagramChanged = exportedXml !== currentXml;
-        if (!syncXml(exportedXml)) {
+        const previousXml = currentXml;
+        const exportedXml = [message.data, message.xml]
+          .map((value) => decodeXmlExportPayload(value))
+          .find((xml) => syncXml(xml));
+        if (!exportedXml) {
           throw new Error("draw.ioから編集内容を取得できませんでした。");
         }
+        const diagramChanged = exportedXml !== previousXml;
         lastLoadedXml = currentXml;
         hasUnsavedChanges ||= diagramChanged;
         if (xmlDownloadPending) {

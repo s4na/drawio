@@ -40,10 +40,9 @@ test("data URI形式のXML exportを復号する", () => {
   );
 });
 
-test("無効な候補を飛ばして後続のXMLを使う", () => {
-  const xml = "<mxGraphModel />";
-  assert.equal(decodeXmlExportPayload("invalid", xml), xml);
+test("無効なXML export候補を拒否する", () => {
   assert.equal(decodeXmlExportPayload("invalid"), null);
+  assert.equal(decodeXmlExportPayload(null), null);
 });
 
 test("URLエンコードされたSVG data URIを復号する", () => {
