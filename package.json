@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test && node --check public/app.js && node --check public/converter.js"
   }
 }
