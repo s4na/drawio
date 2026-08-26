@@ -281,7 +281,7 @@ window.addEventListener("message", (event) => {
   }
 
   if (message.event === "template") {
-    if (!syncXml(message.xml, true)) {
+    if (!syncXml(message.xml)) {
       setStatus("選択したテンプレートを読み込めませんでした。", "error");
       return;
     }
@@ -422,7 +422,7 @@ newButton.addEventListener("click", () => {
   }
 
   syncXml(createBlankDiagram(), true);
-  hasUnsavedChanges = false;
+  clearUnsavedOnNextLoad = true;
   resetOutput();
   loadDiagram(currentXml, "新しい図を作成しています…");
 });
