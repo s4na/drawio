@@ -5,11 +5,12 @@ import {
   parseEmbedMessage,
 } from "./converter.js";
 
-const frame = document.querySelector("#drawio-frame");
+let frame = document.querySelector("#drawio-frame");
 const xmlInput = document.querySelector("#xml-input");
 const svgOutput = document.querySelector("#svg-output");
 const convertButton = document.querySelector("#convert-button");
 const clearButton = document.querySelector("#clear-button");
+const retryButton = document.querySelector("#retry-button");
 const copyButton = document.querySelector("#copy-button");
 const downloadButton = document.querySelector("#download-button");
 const preview = document.querySelector("#preview");
@@ -20,6 +21,7 @@ let editorReady = false;
 let conversionPending = false;
 let previewUrl;
 let timeoutId;
+let initializationTimeoutId;
 
 function setStatus(message, kind = "idle") {
   status.textContent = message;
@@ -37,12 +39,43 @@ function clearTimer() {
   }
 }
 
+function clearInitializationTimer() {
+  if (initializationTimeoutId) {
+    window.clearTimeout(initializationTimeoutId);
+    initializationTimeoutId = undefined;
+  }
+}
+
+function beginInitializationTimeout() {
+  clearInitializationTimer();
+  initializationTimeoutId = window.setTimeout(() => {
+    if (!editorReady) {
+      setStatus("draw.ioを準備できませんでした。再接続してください。", "error");
+      retryButton.hidden = false;
+    }
+  }, 15_000);
+}
+
+function resetEditor(message = "draw.ioへ再接続しています…") {
+  clearTimer();
+  clearInitializationTimer();
+  conversionPending = false;
+  editorReady = false;
+  convertButton.disabled = true;
+  retryButton.hidden = true;
+
+  const replacement = frame.cloneNode();
+  frame.replaceWith(replacement);
+  frame = replacement;
+
+  setStatus(message);
+  beginInitializationTimeout();
+}
+
 function beginTimeout() {
   clearTimer();
   timeoutId = window.setTimeout(() => {
-    conversionPending = false;
-    convertButton.disabled = !editorReady;
-    setStatus("変換がタイムアウトしました。もう一度お試しください。", "error");
+    resetEditor("変換がタイムアウトしました。draw.ioへ再接続しています…");
   }, 30_000);
 }
 
@@ -93,8 +126,10 @@ window.addEventListener("message", (event) => {
   }
 
   if (message.event === "init") {
+    clearInitializationTimer();
     editorReady = true;
     convertButton.disabled = false;
+    retryButton.hidden = true;
     setStatus("変換できます。", "success");
     return;
   }
@@ -148,13 +183,24 @@ convertButton.addEventListener("click", () => {
 });
 
 clearButton.addEventListener("click", () => {
+  const wasPending = conversionPending;
   clearTimer();
   conversionPending = false;
   xmlInput.value = "";
   resetOutput();
-  convertButton.disabled = !editorReady;
-  setStatus(editorReady ? "変換できます。" : "draw.ioを準備しています…", editorReady ? "success" : "idle");
+
+  if (wasPending) {
+    resetEditor();
+  } else {
+    convertButton.disabled = !editorReady;
+    setStatus(editorReady ? "変換できます。" : "draw.ioを準備しています…", editorReady ? "success" : "idle");
+  }
+
   xmlInput.focus();
+});
+
+retryButton.addEventListener("click", () => {
+  resetEditor();
 });
 
 copyButton.addEventListener("click", async () => {
@@ -181,7 +227,10 @@ downloadButton.addEventListener("click", () => {
 
 window.addEventListener("beforeunload", () => {
   clearTimer();
+  clearInitializationTimer();
   if (previewUrl) {
     URL.revokeObjectURL(previewUrl);
   }
 });
+
+beginInitializationTimeout();
