@@ -80,6 +80,9 @@ function setEditorActionsDisabled(disabled) {
   fileInput.disabled = disabled;
   awsLibraryCheckbox.disabled = disabled;
   gcpLibraryCheckbox.disabled = disabled;
+  frame.classList.toggle("is-busy", disabled);
+  frame.toggleAttribute("inert", disabled);
+  frame.setAttribute("aria-busy", String(disabled));
 }
 
 function beginInitializationTimeout() {
@@ -145,7 +148,7 @@ function syncXml(xml, force = false) {
   }
 
   currentXml = xml;
-  if (force || document.activeElement !== xmlInput || !xmlInputDirty) {
+  if (force || !xmlInputDirty) {
     xmlInput.value = xml;
     xmlInputDirty = false;
   }
@@ -204,6 +207,15 @@ window.addEventListener("message", (event) => {
     return;
   }
 
+  if (message.error) {
+    clearTimer();
+    xmlDownloadPending = false;
+    editorReloadPending = undefined;
+    setEditorActionsDisabled(!diagramLoaded);
+    setStatus(`draw.ioエラー: ${message.error}`, "error");
+    return;
+  }
+
   if (message.event === "init") {
     clearInitializationTimer();
     editorReady = true;
@@ -238,7 +250,7 @@ window.addEventListener("message", (event) => {
   if (message.event === "export") {
     try {
       if (message.format === "xml") {
-        if (!syncXml(message.xml, true)) {
+        if (!syncXml(message.data)) {
           throw new Error("draw.ioから編集内容を取得できませんでした。");
         }
         if (xmlDownloadPending) {
@@ -267,13 +279,6 @@ window.addEventListener("message", (event) => {
     return;
   }
 
-  if (message.error) {
-    clearTimer();
-    xmlDownloadPending = false;
-    editorReloadPending = undefined;
-    setEditorActionsDisabled(!diagramLoaded);
-    setStatus(`draw.ioエラー: ${message.error}`, "error");
-  }
 });
 
 loadXmlButton.addEventListener("click", () => {

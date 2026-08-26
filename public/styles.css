@@ -142,6 +142,11 @@ h2,
   background: #fff;
 }
 
+.drawio-frame.is-busy {
+  pointer-events: none;
+  opacity: 0.72;
+}
+
 .status-row {
   justify-content: space-between;
   min-height: 44px;
