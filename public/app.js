@@ -29,7 +29,9 @@ const embedImagesCheckbox = document.querySelector("#embed-images");
 let editorReady = false;
 let diagramLoaded = false;
 let xmlDownloadPending = false;
+let editorReloadPending;
 let currentXml = createBlankDiagram();
+let svgSourceXml;
 let previewUrl;
 let timeoutId;
 let initializationTimeoutId;
@@ -90,6 +92,7 @@ function resetEditor(message = "draw.ioへ再接続しています…") {
   clearTimer();
   clearInitializationTimer();
   xmlDownloadPending = false;
+  editorReloadPending = undefined;
   editorReady = false;
   diagramLoaded = false;
   setEditorActionsDisabled(true);
@@ -107,9 +110,7 @@ function resetEditor(message = "draw.ioへ再接続しています…") {
 function beginTimeout() {
   clearTimer();
   timeoutId = window.setTimeout(() => {
-    xmlDownloadPending = false;
-    setEditorActionsDisabled(!diagramLoaded);
-    setStatus("書き出しがタイムアウトしました。もう一度お試しください。", "error");
+    resetEditor("書き出しがタイムアウトしたため、draw.ioへ再接続しています…");
   }, 30_000);
 }
 
@@ -120,6 +121,7 @@ function resetOutput() {
   }
 
   svgOutput.value = "";
+  svgSourceXml = undefined;
   preview.removeAttribute("src");
   preview.hidden = true;
   previewEmpty.hidden = false;
@@ -217,7 +219,16 @@ window.addEventListener("message", (event) => {
 
   if (message.event === "autosave" || message.event === "save") {
     if (syncXml(message.xml)) {
-      setStatus(message.event === "save" ? "編集内容を同期しました。" : "編集中の内容を同期しました。", "success");
+      const svgWasStale = Boolean(svgSourceXml && svgSourceXml !== currentXml);
+      if (svgWasStale) {
+        resetOutput();
+      }
+      setStatus(
+        svgWasStale
+          ? "編集内容を同期しました。SVGを再度書き出してください。"
+          : message.event === "save" ? "編集内容を同期しました。" : "編集中の内容を同期しました。",
+        "success",
+      );
     }
     return;
   }
@@ -232,9 +243,16 @@ window.addEventListener("message", (event) => {
           downloadText(currentXml, "application/xml", "diagram.drawio");
           setStatus("draw.ioファイルをダウンロードしました。", "success");
         }
+        if (editorReloadPending) {
+          const reloadMessage = editorReloadPending;
+          editorReloadPending = undefined;
+          resetOutput();
+          resetEditor(reloadMessage);
+        }
       } else if (message.format === "svg" || message.data?.startsWith("data:image/svg+xml")) {
         syncXml(message.xml);
         showSvg(decodeSvgDataUri(message.data));
+        svgSourceXml = currentXml;
         setStatus("現在の図からSVGを生成しました。", "success");
       }
     } catch (error) {
@@ -250,6 +268,7 @@ window.addEventListener("message", (event) => {
   if (message.error) {
     clearTimer();
     xmlDownloadPending = false;
+    editorReloadPending = undefined;
     setEditorActionsDisabled(!diagramLoaded);
     setStatus(`draw.ioエラー: ${message.error}`, "error");
   }
@@ -327,8 +346,11 @@ retryButton.addEventListener("click", () => {
 
 for (const checkbox of [awsLibraryCheckbox, gcpLibraryCheckbox]) {
   checkbox.addEventListener("change", () => {
-    resetOutput();
-    resetEditor("クラウドアイコンライブラリを読み込み直しています…");
+    editorReloadPending = "クラウドアイコンライブラリを読み込み直しています…";
+    setEditorActionsDisabled(true);
+    setStatus("編集中の内容を保存してからライブラリを読み込み直します…");
+    beginTimeout();
+    postToDrawio({ action: "export", format: "xml" });
   });
 }
 
