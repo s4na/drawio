@@ -19,6 +19,55 @@
         <p class="lead">ブラウザ上で図を配置・編集し、編集可能な.drawioファイルとSVGを書き出せます。</p>
       </header>
 
+      <section class="panel guide-panel" aria-labelledby="guide-heading">
+        <div class="guide-heading">
+          <div>
+            <p class="eyebrow">Quick guide</p>
+            <h2 id="guide-heading">ChatGPT Workから構成図を作る</h2>
+          </div>
+          <p class="guide-intro">構成を伝えると、ChatGPTがdraw.io XMLを作成してこのエディタへ読み込みます。</p>
+        </div>
+
+        <ol class="guide-steps">
+          <li>
+            <strong>ChatGPTへ構成を伝える</strong>
+            <p>このサイトを使うこと、必要なサービス、接続関係、図に載せる説明を指定します。</p>
+            <p class="prompt-example">例：「https://s4na.github.io/drawio/ を使って、API Gateway → Lambda → Cloud Run → Firestoreの構成図をAWS/GCP公式アイコンで作って」</p>
+          </li>
+          <li>
+            <strong>XMLをエディタへ読み込む</strong>
+            <p>ChatGPTがブラウザを操作します。手動の場合は「draw.io XML」を開き、生成されたXMLを貼って「エディタへ読み込む」を押します。</p>
+          </li>
+          <li>
+            <strong>配置と文字を確認する</strong>
+            <p>図形、矢印、セル内のラベルを公式draw.ioエディタで調整します。</p>
+          </li>
+          <li>
+            <strong>用途に合わせて保存する</strong>
+            <p>編集用の原本は「.drawio保存」、READMEやWeb表示用は「SVG書き出し」を使います。</p>
+          </li>
+        </ol>
+
+        <div class="settings-guide" aria-labelledby="settings-guide-heading">
+          <h3 id="settings-guide-heading">AWS・Google Cloudアイコンの設定</h3>
+          <dl>
+            <div>
+              <dt>AWSアイコン</dt>
+              <dd>AWS公式ライブラリを表示します。AWS構成図ではONにします。</dd>
+            </div>
+            <div>
+              <dt>Google Cloudアイコン</dt>
+              <dd>Google Cloudライブラリを表示します。GCP構成図ではONにします。</dd>
+            </div>
+            <div>
+              <dt>外部画像をSVGへ埋め込む</dt>
+              <dd>URLから追加した画像も単体のSVGに含めたい場合にONにします。</dd>
+            </div>
+          </dl>
+          <p class="settings-note">3項目とも最初からONです。AWS/GCPの構成図を作るだけなら変更する必要はありません。</p>
+        </div>
+      </section>
+
       <section class="panel editor-panel" aria-labelledby="editor-heading">
         <div class="section-heading editor-heading">
           <div>
