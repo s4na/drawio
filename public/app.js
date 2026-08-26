@@ -83,6 +83,7 @@ function setEditorActionsDisabled(disabled) {
   xmlInput.disabled = disabled;
   awsLibraryCheckbox.disabled = disabled;
   gcpLibraryCheckbox.disabled = disabled;
+  embedImagesCheckbox.disabled = disabled;
   frame.classList.toggle("is-busy", disabled);
   frame.toggleAttribute("inert", disabled);
   frame.setAttribute("aria-busy", String(disabled));
@@ -342,6 +343,7 @@ loadXmlButton.addEventListener("click", () => {
 
   currentXml = xml;
   xmlInputDirty = false;
+  hasUnsavedChanges = true;
   resetOutput();
   loadDiagram(currentXml, "XMLをdraw.ioエディタへ読み込んでいます…");
 });
@@ -455,7 +457,11 @@ window.addEventListener("beforeunload", (event) => {
   }
 });
 
-window.addEventListener("pagehide", () => {
+window.addEventListener("pagehide", (event) => {
+  if (event.persisted) {
+    return;
+  }
+
   clearTimer();
   clearInitializationTimer();
   if (previewUrl) {
