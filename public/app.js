@@ -1,7 +1,6 @@
 import {
   DRAWIO_ORIGIN,
   decodeSvgDataUri,
-  looksLikeDrawioXml,
   parseEmbedMessage,
 } from "./converter.js";
 
@@ -94,12 +93,9 @@ function resetOutput() {
 }
 
 function validateXml(xml) {
-  if (!looksLikeDrawioXml(xml)) {
-    return false;
-  }
-
   const document = new DOMParser().parseFromString(xml, "application/xml");
-  return !document.querySelector("parsererror");
+  return !document.querySelector("parsererror")
+    && ["mxfile", "mxGraphModel"].includes(document.documentElement.localName);
 }
 
 function showSvg(svg) {
@@ -233,4 +229,5 @@ window.addEventListener("beforeunload", () => {
   }
 });
 
+frame.src = frame.dataset.src;
 beginInitializationTimeout();
