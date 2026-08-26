@@ -38,16 +38,6 @@ export function parseEmbedMessage(value) {
   return value && typeof value === "object" ? value : null;
 }
 
-export function looksLikeDrawioXml(value) {
-  if (typeof value !== "string") {
-    return false;
-  }
-
-  const xml = value.trim();
-  return /^<\?xml(?:\s[^>]*)?\?>\s*<(?:mxfile|mxGraphModel)\b/i.test(xml)
-    || /^<(?:mxfile|mxGraphModel)\b/i.test(xml);
-}
-
 export function decodeSvgDataUri(dataUri) {
   if (typeof dataUri !== "string" || !dataUri.startsWith("data:image/svg+xml")) {
     throw new Error("draw.ioからSVGデータを取得できませんでした。");

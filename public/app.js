@@ -3,7 +3,6 @@ import {
   buildDrawioUrl,
   createBlankDiagram,
   decodeSvgDataUri,
-  looksLikeDrawioXml,
   parseEmbedMessage,
 } from "./converter.js";
 
@@ -31,6 +30,7 @@ let diagramLoaded = false;
 let xmlDownloadPending = false;
 let editorReloadPending;
 let currentXml = createBlankDiagram();
+let xmlInputDirty = false;
 let svgSourceXml;
 let previewUrl;
 let timeoutId;
@@ -76,6 +76,10 @@ function setEditorActionsDisabled(disabled) {
   for (const button of [newButton, templateButton, downloadDrawioButton, exportSvgButton]) {
     button.disabled = disabled;
   }
+  loadXmlButton.disabled = disabled;
+  fileInput.disabled = disabled;
+  awsLibraryCheckbox.disabled = disabled;
+  gcpLibraryCheckbox.disabled = disabled;
 }
 
 function beginInitializationTimeout() {
@@ -130,12 +134,9 @@ function resetOutput() {
 }
 
 function validateXml(xml) {
-  if (!looksLikeDrawioXml(xml)) {
-    return false;
-  }
-
   const document = new DOMParser().parseFromString(xml, "application/xml");
-  return !document.querySelector("parsererror");
+  return !document.querySelector("parsererror")
+    && ["mxfile", "mxGraphModel"].includes(document.documentElement.localName);
 }
 
 function syncXml(xml, force = false) {
@@ -144,8 +145,9 @@ function syncXml(xml, force = false) {
   }
 
   currentXml = xml;
-  if (force || document.activeElement !== xmlInput) {
+  if (force || document.activeElement !== xmlInput || !xmlInputDirty) {
     xmlInput.value = xml;
+    xmlInputDirty = false;
   }
   return true;
 }
@@ -283,8 +285,13 @@ loadXmlButton.addEventListener("click", () => {
   }
 
   currentXml = xml;
+  xmlInputDirty = false;
   resetOutput();
   loadDiagram(currentXml, "XMLをdraw.ioエディタへ読み込んでいます…");
+});
+
+xmlInput.addEventListener("input", () => {
+  xmlInputDirty = true;
 });
 
 fileInput.addEventListener("change", async () => {
@@ -380,5 +387,6 @@ window.addEventListener("beforeunload", () => {
   }
 });
 
+setEditorActionsDisabled(true);
 frame.src = buildEditorUrl();
 beginInitializationTimeout();
