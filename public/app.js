@@ -2,6 +2,7 @@ import {
   DRAWIO_ORIGIN,
   buildDrawioUrl,
   createBlankDiagram,
+  decodeXmlExportPayload,
   decodeSvgDataUri,
   parseEmbedMessage,
 } from "./converter.js";
@@ -318,8 +319,9 @@ window.addEventListener("message", (event) => {
   if (message.event === "export") {
     try {
       if (message.format === "xml") {
-        const diagramChanged = message.data !== currentXml;
-        if (!syncXml(message.data)) {
+        const exportedXml = decodeXmlExportPayload(message.data, message.xml);
+        const diagramChanged = exportedXml !== currentXml;
+        if (!syncXml(exportedXml)) {
           throw new Error("draw.ioから編集内容を取得できませんでした。");
         }
         lastLoadedXml = currentXml;

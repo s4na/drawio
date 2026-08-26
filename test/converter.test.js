@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildDrawioUrl,
   createBlankDiagram,
+  decodeXmlExportPayload,
   decodeSvgDataUri,
   parseEmbedMessage,
 } from "../public/converter.js";
@@ -23,6 +24,26 @@ test("オブジェクト形式のembedメッセージを受け入れる", () => 
   const message = { event: "load" };
   assert.equal(parseEmbedMessage(message), message);
   assert.equal(parseEmbedMessage(null), null);
+});
+
+test("XML exportの生XMLを取り出す", () => {
+  const xml = "<mxfile><diagram /></mxfile>";
+  assert.equal(decodeXmlExportPayload(xml), xml);
+});
+
+test("data URI形式のXML exportを復号する", () => {
+  const xml = "<mxfile><diagram /></mxfile>";
+  assert.equal(decodeXmlExportPayload(`data:application/xml,${encodeURIComponent(xml)}`), xml);
+  assert.equal(
+    decodeXmlExportPayload(`data:application/xml;base64,${Buffer.from(xml).toString("base64")}`),
+    xml,
+  );
+});
+
+test("無効な候補を飛ばして後続のXMLを使う", () => {
+  const xml = "<mxGraphModel />";
+  assert.equal(decodeXmlExportPayload("invalid", xml), xml);
+  assert.equal(decodeXmlExportPayload("invalid"), null);
 });
 
 test("URLエンコードされたSVG data URIを復号する", () => {
