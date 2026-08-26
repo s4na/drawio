@@ -31,8 +31,10 @@ let xmlDownloadPending = false;
 let editorReloadPending;
 let currentXml = createBlankDiagram();
 let lastLoadedXml = currentXml;
+let activeLibraries = selectedLibraries();
 let xmlInputDirty = false;
 let hasUnsavedChanges = false;
+let clearUnsavedOnNextLoad = false;
 let svgSourceXml;
 let previewUrl;
 let timeoutId;
@@ -206,6 +208,11 @@ function confirmReplacement(includeXmlDraft = false) {
   return window.confirm("保存していない内容を破棄して、別の図を読み込みますか？");
 }
 
+function restoreActiveLibraries() {
+  awsLibraryCheckbox.checked = activeLibraries.includes("aws4");
+  gcpLibraryCheckbox.checked = activeLibraries.includes("gcp2");
+}
+
 function showSvg(svg) {
   resetOutput();
   svgOutput.value = svg;
@@ -232,9 +239,13 @@ window.addEventListener("message", (event) => {
   if (message.error) {
     clearTimer();
     xmlDownloadPending = false;
+    if (editorReloadPending) {
+      restoreActiveLibraries();
+    }
     editorReloadPending = undefined;
 
     if (message.event === "load" && !diagramLoaded) {
+      clearUnsavedOnNextLoad = false;
       syncXml(lastLoadedXml);
       resetOutput();
       resetEditor("図を読み込めなかったため、直前の図を復元しています…");
@@ -258,6 +269,11 @@ window.addEventListener("message", (event) => {
     clearTimer();
     diagramLoaded = true;
     lastLoadedXml = currentXml;
+    activeLibraries = selectedLibraries();
+    if (clearUnsavedOnNextLoad) {
+      hasUnsavedChanges = false;
+      clearUnsavedOnNextLoad = false;
+    }
     setEditorActionsDisabled(false);
     setStatus("図を編集できます。", "success");
     return;
@@ -317,6 +333,9 @@ window.addEventListener("message", (event) => {
         setStatus("現在の図からSVGを生成しました。", "success");
       }
     } catch (error) {
+      if (editorReloadPending) {
+        restoreActiveLibraries();
+      }
       editorReloadPending = undefined;
       setStatus(error.message, "error");
     } finally {
@@ -374,6 +393,7 @@ fileInput.addEventListener("change", async () => {
     }
 
     syncXml(xml, true);
+    clearUnsavedOnNextLoad = true;
     resetOutput();
     loadDiagram(currentXml, `${file.name}を読み込んでいます…`);
   } catch {
@@ -394,6 +414,10 @@ newButton.addEventListener("click", () => {
 });
 
 templateButton.addEventListener("click", () => {
+  if (!confirmReplacement(true)) {
+    return;
+  }
+
   postToDrawio({ action: "template", noExitOnCancel: true });
 });
 
