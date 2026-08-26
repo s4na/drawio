@@ -24,14 +24,14 @@ textarea {
 }
 
 .shell {
-  width: min(1100px, calc(100% - 32px));
+  width: min(1440px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 64px 0 40px;
+  padding: 48px 0 40px;
 }
 
 .hero {
-  max-width: 720px;
-  margin-bottom: 32px;
+  max-width: 760px;
+  margin-bottom: 28px;
 }
 
 .eyebrow,
@@ -52,19 +52,21 @@ p {
 
 h1 {
   margin-bottom: 14px;
-  font-size: clamp(2.8rem, 9vw, 5.6rem);
+  font-size: clamp(2.8rem, 8vw, 5.2rem);
   line-height: 0.92;
-  letter-spacing: -0.075em;
+  letter-spacing: -0.07em;
 }
 
-h2 {
+h2,
+.summary-title {
   margin-bottom: 0;
   font-size: 1.35rem;
+  font-weight: 750;
   letter-spacing: -0.025em;
 }
 
 .lead {
-  max-width: 620px;
+  max-width: 680px;
   color: #536056;
   font-size: 1.05rem;
   line-height: 1.7;
@@ -72,17 +74,22 @@ h2 {
 
 .panel {
   margin-bottom: 20px;
-  padding: clamp(20px, 4vw, 36px);
+  padding: clamp(18px, 3vw, 30px);
   border: 1px solid rgba(59, 76, 61, 0.16);
   border-radius: 24px;
-  background: rgba(255, 255, 252, 0.9);
+  background: rgba(255, 255, 252, 0.92);
   box-shadow: 0 18px 60px rgba(48, 66, 51, 0.08);
   backdrop-filter: blur(12px);
 }
 
+.editor-panel {
+  padding-bottom: 22px;
+}
+
 .section-heading,
 .actions,
-.button-row {
+.button-row,
+.status-row {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -91,6 +98,59 @@ h2 {
 .section-heading {
   justify-content: space-between;
   margin-bottom: 18px;
+}
+
+.editor-heading {
+  align-items: flex-end;
+}
+
+.button-row {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin: 0 0 14px;
+  border: 0;
+  padding: 0;
+  color: #4d5a4f;
+  font-size: 0.9rem;
+}
+
+.options legend {
+  margin-right: 8px;
+  color: #35453a;
+  font-weight: 750;
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.drawio-frame {
+  display: block;
+  width: 100%;
+  height: max(620px, 72vh);
+  border: 1px solid #bcc8b9;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.drawio-frame.is-busy {
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.status-row {
+  justify-content: space-between;
+  min-height: 44px;
+  margin-top: 10px;
 }
 
 textarea {
@@ -110,6 +170,8 @@ textarea {
 
 textarea:focus,
 button:focus-visible,
+.file-button:focus-within,
+summary:focus-visible,
 a:focus-visible {
   outline: 3px solid rgba(54, 116, 69, 0.32);
   outline-offset: 3px;
@@ -120,55 +182,20 @@ a:focus-visible {
   margin-top: 18px;
 }
 
-.options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 18px;
-  margin: 16px 0 0;
-  border: 0;
-  padding: 0;
-}
-
-.options legend {
-  width: 100%;
-  margin-bottom: 8px;
-  color: #536056;
-  font-size: 0.82rem;
-  font-weight: 750;
-}
-
-.option {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: #314735;
-  font-size: 0.9rem;
-}
-
-.option input {
-  width: 1rem;
-  height: 1rem;
-  accent-color: #244b2e;
-}
-
-.option-help {
-  flex-basis: 100%;
-  margin: 0;
-  color: #687269;
-  font-size: 0.8rem;
-  line-height: 1.55;
-}
-
 .actions {
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 42px;
   border: 1px solid transparent;
   border-radius: 999px;
   padding: 9px 17px;
   font-weight: 750;
+  line-height: 1.2;
   cursor: pointer;
   transition: transform 140ms ease, opacity 140ms ease, background 140ms ease;
 }
@@ -194,6 +221,10 @@ a:focus-visible {
   background: #f7faf5;
 }
 
+.file-button {
+  user-select: none;
+}
+
 .status {
   margin: 0;
   color: #687269;
@@ -208,6 +239,45 @@ a:focus-visible {
   color: #aa2f2f;
 }
 
+details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details > summary::after {
+  content: "+";
+  color: #55714c;
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+details[open] > summary::after {
+  content: "−";
+}
+
+.summary-help,
+.help {
+  color: #6f796f;
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.summary-help {
+  margin-left: auto;
+}
+
+.source-content {
+  padding-top: 20px;
+}
+
 .preview,
 .preview-empty {
   width: 100%;
@@ -219,7 +289,7 @@ a:focus-visible {
 
 .preview {
   display: block;
-  max-height: 620px;
+  max-height: 720px;
   padding: 16px;
   object-fit: contain;
 }
@@ -252,14 +322,6 @@ a {
   text-underline-offset: 0.18em;
 }
 
-.drawio-frame {
-  position: fixed;
-  width: 1px;
-  height: 1px;
-  left: -9999px;
-  border: 0;
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -272,24 +334,31 @@ a {
   border: 0;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 760px) {
   .shell {
-    width: min(100% - 20px, 1100px);
-    padding-top: 36px;
+    width: min(100% - 20px, 1440px);
+    padding-top: 32px;
   }
 
   .section-heading,
-  .actions {
+  .editor-heading,
+  .status-row {
     align-items: flex-start;
     flex-direction: column;
   }
 
   .button-row {
-    flex-wrap: wrap;
+    width: 100%;
+    justify-content: flex-start;
   }
 
-  .actions .button {
-    width: 100%;
+  .drawio-frame {
+    height: 70vh;
+    min-height: 520px;
+  }
+
+  .summary-help {
+    display: none;
   }
 }
 

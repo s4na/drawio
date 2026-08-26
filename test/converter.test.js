@@ -3,9 +3,16 @@ import test from "node:test";
 
 import {
   buildDrawioUrl,
+  createBlankDiagram,
   decodeSvgDataUri,
   parseEmbedMessage,
 } from "../public/converter.js";
+
+test("新規図として編集可能なdraw.io XMLを生成する", () => {
+  const xml = createBlankDiagram();
+  assert.match(xml, /<mxCell id="0"\/>/);
+  assert.match(xml, /<mxCell id="1" parent="0"\/>/);
+});
 
 test("JSON文字列のembedメッセージを解析する", () => {
   assert.deepEqual(parseEmbedMessage('{"event":"init"}'), { event: "init" });

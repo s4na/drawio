@@ -1,23 +1,19 @@
-# drawio SVG Converter
+# draw.io Browser Editor
 
-draw.ioの編集可能なXMLを、ブラウザ内でSVGへ変換する静的Webアプリです。
+ブラウザ上でdraw.ioの図を作成・編集し、`.drawio`ファイルとSVGへ書き出せる静的Webアプリです。
 
-**[ブラウザで開く](https://s4na.github.io/drawio/)**
+公開サイト: https://s4na.github.io/drawio/
 
 ## 使い方
 
-1. `.drawio`ファイルのXMLを入力欄へ貼り付ける
-2. 「SVGに変換」を押す
-3. 必要に応じてAWS・Google Cloudアイコンや外部画像の埋め込みを選ぶ
-4. プレビューを確認し、SVGをコピーまたはダウンロードする
+1. 埋め込みdraw.ioエディタで図を作成するか、既存の`.drawio`ファイルを開く
+2. 必要に応じてAWS・Google Cloudの公式アイコンやURL指定の外部画像を配置する
+3. `.drawio保存`または`SVG書き出し`を選ぶ
+4. SVGはプレビューを確認し、コピーまたはダウンロードする
 
-## 変換オプション
+編集と変換にはdraw.io公式の[embed mode](https://www.drawio.com/docs/reference/embed-mode/)を使用します。編集内容はGitHub Pagesのサーバーへ保存されず、ブラウザと`embed.diagrams.net`の埋め込みエディタ間で同期されます。
 
-- **AWSアイコン**: draw.io公式の`aws4`ライブラリを読み込みます
-- **Google Cloudアイコン**: draw.io公式の`gcp2`ライブラリを読み込みます
-- **外部画像をSVGへ埋め込む**: 取得先が許可する画像をSVG内へ埋め込みます。取得先のCORS設定などにより埋め込めない場合があります
-
-変換にはdraw.io公式の[embed mode](https://www.drawio.com/doc/faq/embed-mode)を使用します。入力したXMLはGitHub Pagesのサーバーには送られず、ブラウザから`embed.diagrams.net`の埋め込みエディタへ`postMessage`で渡されます。
+XML欄は通常の編集では開く必要がありません。生成済みのdraw.io XMLを読み込んでエディタ上で配置を確認したい場合に使用できます。
 
 ## 開発
 

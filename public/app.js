@@ -1,15 +1,20 @@
 import {
   DRAWIO_ORIGIN,
   buildDrawioUrl,
+  createBlankDiagram,
   decodeSvgDataUri,
   parseEmbedMessage,
 } from "./converter.js";
 
 let frame = document.querySelector("#drawio-frame");
 const xmlInput = document.querySelector("#xml-input");
+const loadXmlButton = document.querySelector("#load-xml-button");
+const fileInput = document.querySelector("#file-input");
+const newButton = document.querySelector("#new-button");
+const templateButton = document.querySelector("#template-button");
+const downloadDrawioButton = document.querySelector("#download-drawio-button");
+const exportSvgButton = document.querySelector("#export-svg-button");
 const svgOutput = document.querySelector("#svg-output");
-const convertButton = document.querySelector("#convert-button");
-const clearButton = document.querySelector("#clear-button");
 const retryButton = document.querySelector("#retry-button");
 const copyButton = document.querySelector("#copy-button");
 const downloadButton = document.querySelector("#download-button");
@@ -21,10 +26,21 @@ const gcpLibraryCheckbox = document.querySelector("#library-gcp");
 const embedImagesCheckbox = document.querySelector("#embed-images");
 
 let editorReady = false;
-let conversionPending = false;
+let diagramLoaded = false;
+let xmlDownloadPending = false;
+let editorReloadPending;
+let currentXml = createBlankDiagram();
+let lastLoadedXml = currentXml;
+let activeLibraries = selectedLibraries();
+let xmlInputDirty = false;
+let hasUnsavedChanges = false;
+let pendingUnsavedState;
+let svgSourceXml;
 let previewUrl;
 let timeoutId;
 let initializationTimeoutId;
+
+xmlInput.value = currentXml;
 
 function setStatus(message, kind = "idle") {
   status.textContent = message;
@@ -60,6 +76,21 @@ function clearInitializationTimer() {
   }
 }
 
+function setEditorActionsDisabled(disabled) {
+  for (const button of [newButton, templateButton, downloadDrawioButton, exportSvgButton]) {
+    button.disabled = disabled;
+  }
+  loadXmlButton.disabled = disabled;
+  fileInput.disabled = disabled;
+  xmlInput.disabled = disabled;
+  awsLibraryCheckbox.disabled = disabled;
+  gcpLibraryCheckbox.disabled = disabled;
+  embedImagesCheckbox.disabled = disabled;
+  frame.classList.toggle("is-busy", disabled);
+  frame.toggleAttribute("inert", disabled);
+  frame.setAttribute("aria-busy", String(disabled));
+}
+
 function beginInitializationTimeout() {
   clearInitializationTimer();
   initializationTimeoutId = window.setTimeout(() => {
@@ -73,9 +104,11 @@ function beginInitializationTimeout() {
 function resetEditor(message = "draw.ioへ再接続しています…") {
   clearTimer();
   clearInitializationTimer();
-  conversionPending = false;
+  xmlDownloadPending = false;
+  editorReloadPending = undefined;
   editorReady = false;
-  convertButton.disabled = true;
+  diagramLoaded = false;
+  setEditorActionsDisabled(true);
   retryButton.hidden = true;
 
   const replacement = frame.cloneNode();
@@ -90,7 +123,17 @@ function resetEditor(message = "draw.ioへ再接続しています…") {
 function beginTimeout() {
   clearTimer();
   timeoutId = window.setTimeout(() => {
-    resetEditor("変換がタイムアウトしました。draw.ioへ再接続しています…");
+    resetEditor("書き出しがタイムアウトしたため、draw.ioへ再接続しています…");
+  }, 30_000);
+}
+
+function beginLoadTimeout() {
+  clearTimer();
+  timeoutId = window.setTimeout(() => {
+    pendingUnsavedState = undefined;
+    syncXml(lastLoadedXml);
+    resetOutput();
+    resetEditor("図の読み込みがタイムアウトしたため、直前の図を復元しています…");
   }, 30_000);
 }
 
@@ -101,6 +144,7 @@ function resetOutput() {
   }
 
   svgOutput.value = "";
+  svgSourceXml = undefined;
   preview.removeAttribute("src");
   preview.hidden = true;
   previewEmpty.hidden = false;
@@ -112,6 +156,62 @@ function validateXml(xml) {
   const document = new DOMParser().parseFromString(xml, "application/xml");
   return !document.querySelector("parsererror")
     && ["mxfile", "mxGraphModel"].includes(document.documentElement.localName);
+}
+
+function syncXml(xml, force = false) {
+  if (typeof xml !== "string" || !validateXml(xml)) {
+    return false;
+  }
+
+  currentXml = xml;
+  if (force || !xmlInputDirty) {
+    xmlInput.value = xml;
+    xmlInputDirty = false;
+  }
+  return true;
+}
+
+function loadDiagram(xml, message = "図を読み込みました。") {
+  if (!editorReady) {
+    return;
+  }
+
+  diagramLoaded = false;
+  setEditorActionsDisabled(true);
+  postToDrawio({
+    action: "load",
+    xml,
+    autosave: 1,
+    noExitBtn: 1,
+    saveAndExit: 0,
+    title: "diagram.drawio",
+    libs: selectedLibraries().join(";"),
+    fit: 1,
+  });
+  setStatus(message);
+  beginLoadTimeout();
+}
+
+function downloadText(content, type, filename) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function confirmReplacement(includeXmlDraft = false) {
+  if (!hasUnsavedChanges && (!includeXmlDraft || !xmlInputDirty)) {
+    return true;
+  }
+
+  return window.confirm("保存していない内容を破棄して、別の図を読み込みますか？");
+}
+
+function restoreActiveLibraries() {
+  awsLibraryCheckbox.checked = activeLibraries.includes("aws4");
+  gcpLibraryCheckbox.checked = activeLibraries.includes("gcp2");
 }
 
 function showSvg(svg) {
@@ -137,42 +237,135 @@ window.addEventListener("message", (event) => {
     return;
   }
 
-  if (message.event === "init") {
-    clearInitializationTimer();
-    editorReady = true;
-    convertButton.disabled = false;
-    retryButton.hidden = true;
-    setStatus("変換できます。", "success");
+  if (message.error) {
+    clearTimer();
+    xmlDownloadPending = false;
+    if (editorReloadPending) {
+      restoreActiveLibraries();
+    }
+    editorReloadPending = undefined;
+
+    if (message.event === "load" && !diagramLoaded) {
+      pendingUnsavedState = undefined;
+      syncXml(lastLoadedXml);
+      resetOutput();
+      resetEditor("図を読み込めなかったため、直前の図を復元しています…");
+      return;
+    }
+
+    setEditorActionsDisabled(!diagramLoaded);
+    setStatus(`draw.ioエラー: ${message.error}`, "error");
     return;
   }
 
-  if (!conversionPending) {
+  if (message.event === "init") {
+    clearInitializationTimer();
+    editorReady = true;
+    retryButton.hidden = true;
+    loadDiagram(currentXml, "draw.ioエディタを読み込んでいます…");
+    return;
+  }
+
+  if (message.event === "load") {
+    clearTimer();
+    diagramLoaded = true;
+    lastLoadedXml = currentXml;
+    activeLibraries = selectedLibraries();
+    if (pendingUnsavedState !== undefined) {
+      hasUnsavedChanges = pendingUnsavedState;
+      pendingUnsavedState = undefined;
+    }
+    setEditorActionsDisabled(false);
+    setStatus("図を編集できます。", "success");
+    return;
+  }
+
+  if (message.event === "template") {
+    if (!syncXml(message.xml)) {
+      setStatus("選択したテンプレートを読み込めませんでした。", "error");
+      return;
+    }
+
+    pendingUnsavedState = true;
+    resetOutput();
+    loadDiagram(currentXml, "テンプレートを読み込んでいます…");
+    return;
+  }
+
+  if (message.event === "autosave" || message.event === "save") {
+    if (!diagramLoaded) {
+      return;
+    }
+
+    const diagramChanged = message.xml !== currentXml;
+    if (syncXml(message.xml)) {
+      lastLoadedXml = currentXml;
+      hasUnsavedChanges ||= diagramChanged;
+      const svgWasStale = Boolean(svgSourceXml && svgSourceXml !== currentXml);
+      if (svgWasStale) {
+        resetOutput();
+      }
+      setStatus(
+        svgWasStale
+          ? "編集内容を同期しました。SVGを再度書き出してください。"
+          : message.event === "save" ? "編集内容を同期しました。" : "編集中の内容を同期しました。",
+        "success",
+      );
+    }
     return;
   }
 
   if (message.event === "export") {
     try {
-      showSvg(decodeSvgDataUri(message.data));
-      setStatus("SVGを生成しました。", "success");
+      if (message.format === "xml") {
+        const diagramChanged = message.data !== currentXml;
+        if (!syncXml(message.data)) {
+          throw new Error("draw.ioから編集内容を取得できませんでした。");
+        }
+        lastLoadedXml = currentXml;
+        hasUnsavedChanges ||= diagramChanged;
+        if (xmlDownloadPending) {
+          downloadText(currentXml, "application/xml", "diagram.drawio");
+          hasUnsavedChanges = false;
+          setStatus("draw.ioファイルをダウンロードしました。", "success");
+        }
+        if (editorReloadPending) {
+          const reloadMessage = editorReloadPending;
+          editorReloadPending = undefined;
+          resetOutput();
+          resetEditor(reloadMessage);
+        }
+      } else if (message.format === "svg" || message.data?.startsWith("data:image/svg+xml")) {
+        const diagramChanged = typeof message.xml === "string" && message.xml !== currentXml;
+        if (syncXml(message.xml)) {
+          lastLoadedXml = currentXml;
+          hasUnsavedChanges ||= diagramChanged;
+        }
+        showSvg(decodeSvgDataUri(message.data));
+        svgSourceXml = currentXml;
+        setStatus("現在の図からSVGを生成しました。", "success");
+      }
     } catch (error) {
+      if (editorReloadPending) {
+        restoreActiveLibraries();
+      }
+      editorReloadPending = undefined;
       setStatus(error.message, "error");
     } finally {
       clearTimer();
-      conversionPending = false;
-      convertButton.disabled = false;
+      xmlDownloadPending = false;
+      setEditorActionsDisabled(!diagramLoaded);
     }
     return;
   }
 
-  if (message.error) {
-    clearTimer();
-    conversionPending = false;
-    convertButton.disabled = false;
-    setStatus(`draw.ioエラー: ${message.error}`, "error");
-  }
 });
 
-convertButton.addEventListener("click", () => {
+loadXmlButton.addEventListener("click", () => {
+  if (!confirmReplacement()) {
+    return;
+  }
+
   const xml = xmlInput.value.trim();
   if (!validateXml(xml)) {
     setStatus("有効なdraw.io XMLを入力してください。", "error");
@@ -180,35 +373,86 @@ convertButton.addEventListener("click", () => {
     return;
   }
 
+  currentXml = xml;
+  xmlInputDirty = false;
+  pendingUnsavedState = true;
   resetOutput();
-  conversionPending = true;
-  convertButton.disabled = true;
-  setStatus("SVGを書き出しています…");
+  loadDiagram(currentXml, "XMLをdraw.ioエディタへ読み込んでいます…");
+});
+
+xmlInput.addEventListener("input", () => {
+  xmlInputDirty = true;
+});
+
+fileInput.addEventListener("change", async () => {
+  const [file] = fileInput.files;
+  fileInput.value = "";
+  if (!file) {
+    return;
+  }
+
+  if (!confirmReplacement(true)) {
+    return;
+  }
+
+  setEditorActionsDisabled(true);
+
+  try {
+    const xml = await file.text();
+    if (!validateXml(xml)) {
+      setEditorActionsDisabled(false);
+      setStatus("有効な.drawioファイルを選択してください。", "error");
+      return;
+    }
+
+    syncXml(xml, true);
+    pendingUnsavedState = false;
+    resetOutput();
+    loadDiagram(currentXml, `${file.name}を読み込んでいます…`);
+  } catch {
+    setEditorActionsDisabled(false);
+    setStatus(`${file.name}を読み込めませんでした。`, "error");
+  }
+});
+
+newButton.addEventListener("click", () => {
+  if (!window.confirm("現在の図を閉じて、新しい図を作成しますか？")) {
+    return;
+  }
+
+  syncXml(createBlankDiagram(), true);
+  pendingUnsavedState = false;
+  resetOutput();
+  loadDiagram(currentXml, "新しい図を作成しています…");
+});
+
+templateButton.addEventListener("click", () => {
+  if (!confirmReplacement(true)) {
+    return;
+  }
+
+  postToDrawio({ action: "template", callback: true, noExitOnCancel: true });
+});
+
+downloadDrawioButton.addEventListener("click", () => {
+  xmlDownloadPending = true;
+  setEditorActionsDisabled(true);
+  setStatus("編集内容をdraw.ioファイルへ書き出しています…");
+  beginTimeout();
+  postToDrawio({ action: "export", format: "xml" });
+});
+
+exportSvgButton.addEventListener("click", () => {
+  resetOutput();
+  setEditorActionsDisabled(true);
+  setStatus("現在の図をSVGへ書き出しています…");
   beginTimeout();
   postToDrawio({
     action: "export",
     format: "svg",
-    xml,
     border: 8,
     embedImages: embedImagesCheckbox.checked,
   });
-});
-
-clearButton.addEventListener("click", () => {
-  const wasPending = conversionPending;
-  clearTimer();
-  conversionPending = false;
-  xmlInput.value = "";
-  resetOutput();
-
-  if (wasPending) {
-    resetEditor();
-  } else {
-    convertButton.disabled = !editorReady;
-    setStatus(editorReady ? "変換できます。" : "draw.ioを準備しています…", editorReady ? "success" : "idle");
-  }
-
-  xmlInput.focus();
 });
 
 retryButton.addEventListener("click", () => {
@@ -217,8 +461,11 @@ retryButton.addEventListener("click", () => {
 
 for (const checkbox of [awsLibraryCheckbox, gcpLibraryCheckbox]) {
   checkbox.addEventListener("change", () => {
-    resetOutput();
-    resetEditor("クラウドアイコンライブラリを読み込み直しています…");
+    editorReloadPending = "クラウドアイコンライブラリを読み込み直しています…";
+    setEditorActionsDisabled(true);
+    setStatus("編集中の内容を保存してからライブラリを読み込み直します…");
+    beginTimeout();
+    postToDrawio({ action: "export", format: "xml" });
   });
 }
 
@@ -237,14 +484,21 @@ copyButton.addEventListener("click", async () => {
 });
 
 downloadButton.addEventListener("click", () => {
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(new Blob([svgOutput.value], { type: "image/svg+xml" }));
-  link.download = "diagram.svg";
-  link.click();
-  window.setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  downloadText(svgOutput.value, "image/svg+xml", "diagram.svg");
 });
 
-window.addEventListener("beforeunload", () => {
+window.addEventListener("beforeunload", (event) => {
+  if (hasUnsavedChanges || xmlInputDirty || pendingUnsavedState === true) {
+    event.preventDefault();
+    event.returnValue = "";
+  }
+});
+
+window.addEventListener("pagehide", (event) => {
+  if (event.persisted) {
+    return;
+  }
+
   clearTimer();
   clearInitializationTimer();
   if (previewUrl) {
@@ -252,5 +506,6 @@ window.addEventListener("beforeunload", () => {
   }
 });
 
+setEditorActionsDisabled(true);
 frame.src = buildEditorUrl();
 beginInitializationTimeout();
