@@ -80,6 +80,7 @@ function setEditorActionsDisabled(disabled) {
   }
   loadXmlButton.disabled = disabled;
   fileInput.disabled = disabled;
+  xmlInput.disabled = disabled;
   awsLibraryCheckbox.disabled = disabled;
   gcpLibraryCheckbox.disabled = disabled;
   frame.classList.toggle("is-busy", disabled);
@@ -126,7 +127,7 @@ function beginTimeout() {
 function beginLoadTimeout() {
   clearTimer();
   timeoutId = window.setTimeout(() => {
-    syncXml(lastLoadedXml, true);
+    syncXml(lastLoadedXml);
     resetOutput();
     resetEditor("図の読み込みがタイムアウトしたため、直前の図を復元しています…");
   }, 30_000);
@@ -196,6 +197,14 @@ function downloadText(content, type, filename) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+function confirmReplacement(includeXmlDraft = false) {
+  if (!hasUnsavedChanges && (!includeXmlDraft || !xmlInputDirty)) {
+    return true;
+  }
+
+  return window.confirm("保存していない内容を破棄して、別の図を読み込みますか？");
+}
+
 function showSvg(svg) {
   resetOutput();
   svgOutput.value = svg;
@@ -225,7 +234,7 @@ window.addEventListener("message", (event) => {
     editorReloadPending = undefined;
 
     if (message.event === "load" && !diagramLoaded) {
-      syncXml(lastLoadedXml, true);
+      syncXml(lastLoadedXml);
       resetOutput();
       resetEditor("図を読み込めなかったため、直前の図を復元しています…");
       return;
@@ -320,6 +329,10 @@ window.addEventListener("message", (event) => {
 });
 
 loadXmlButton.addEventListener("click", () => {
+  if (!confirmReplacement()) {
+    return;
+  }
+
   const xml = xmlInput.value.trim();
   if (!validateXml(xml)) {
     setStatus("有効なdraw.io XMLを入力してください。", "error");
@@ -341,6 +354,10 @@ fileInput.addEventListener("change", async () => {
   const [file] = fileInput.files;
   fileInput.value = "";
   if (!file) {
+    return;
+  }
+
+  if (!confirmReplacement(true)) {
     return;
   }
 
@@ -432,14 +449,17 @@ downloadButton.addEventListener("click", () => {
 });
 
 window.addEventListener("beforeunload", (event) => {
+  if (hasUnsavedChanges || xmlInputDirty) {
+    event.preventDefault();
+    event.returnValue = "";
+  }
+});
+
+window.addEventListener("pagehide", () => {
   clearTimer();
   clearInitializationTimer();
   if (previewUrl) {
     URL.revokeObjectURL(previewUrl);
-  }
-  if (hasUnsavedChanges) {
-    event.preventDefault();
-    event.returnValue = "";
   }
 });
 
