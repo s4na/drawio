@@ -1,6 +1,6 @@
 # drawio SVG Converter
 
-draw.ioの編集可能なXMLを、ブラウザ内でSVGへ変換する静的Webアプリです。
+draw.ioの編集可能なXMLを、ブラウザ内でSVGへ変換する静的Webアプリです。\n\n**[ブラウザで開く](https://s4na.github.io/drawio/)**
 
 ## 使い方
 
