@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; frame-src https://embed.diagrams.net; connect-src 'none'; font-src 'self'; base-uri 'none'; form-action 'none'"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; frame-src https://embed.diagrams.net; connect-src 'none'; font-src 'self'; base-uri 'none'; form-action 'none'"
     >
     <meta name="description" content="draw.io XMLをブラウザ内でSVGへ変換します。">
     <title>draw.io SVG Converter</title>
@@ -34,6 +34,24 @@
           placeholder="&lt;mxfile&gt;...&lt;/mxfile&gt;"
           autocomplete="off"
         ></textarea>
+        <fieldset class="options">
+          <legend>変換オプション</legend>
+          <label class="option">
+            <input id="library-aws" type="checkbox" checked>
+            AWSアイコン
+          </label>
+          <label class="option">
+            <input id="library-gcp" type="checkbox" checked>
+            Google Cloudアイコン
+          </label>
+          <label class="option">
+            <input id="embed-images" type="checkbox" checked>
+            外部画像をSVGへ埋め込む
+          </label>
+          <p class="option-help">
+            AWSとGoogle Cloudはdraw.io公式ライブラリを読み込みます。外部画像は取得先が許可する場合にデータとして埋め込まれます。
+          </p>
+        </fieldset>
         <div class="actions">
           <button id="convert-button" class="button button-primary" type="button" disabled>
             SVGに変換

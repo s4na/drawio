@@ -1,5 +1,18 @@
 export const DRAWIO_ORIGIN = "https://embed.diagrams.net";
 
+export function buildDrawioUrl(baseUrl, libraries) {
+  const url = new URL(baseUrl);
+  const selectedLibraries = [...new Set(libraries.filter(Boolean))];
+
+  if (selectedLibraries.length > 0) {
+    url.searchParams.set("libs", selectedLibraries.join(";"));
+  } else {
+    url.searchParams.delete("libs");
+  }
+
+  return url.toString();
+}
+
 export function parseEmbedMessage(value) {
   if (typeof value === "string") {
     try {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildDrawioUrl,
   decodeSvgDataUri,
   parseEmbedMessage,
 } from "../public/converter.js";
@@ -30,4 +31,14 @@ test("base64のSVG data URIをUTF-8で復号する", () => {
 
 test("SVG以外のdata URIを拒否する", () => {
   assert.throws(() => decodeSvgDataUri("data:image/png;base64,AAAA"), /SVGデータ/);
+});
+
+test("選択したクラウドアイコンライブラリをURLへ設定する", () => {
+  const url = new URL(buildDrawioUrl("https://embed.diagrams.net/?embed=1", ["aws4", "gcp2", "aws4"]));
+  assert.equal(url.searchParams.get("libs"), "aws4;gcp2");
+});
+
+test("ライブラリ未選択時は既存のlibs指定を削除する", () => {
+  const url = new URL(buildDrawioUrl("https://embed.diagrams.net/?embed=1&libs=aws4", []));
+  assert.equal(url.searchParams.has("libs"), false);
 });
