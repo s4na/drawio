@@ -30,6 +30,7 @@ let diagramLoaded = false;
 let xmlDownloadPending = false;
 let editorReloadPending;
 let currentXml = createBlankDiagram();
+let lastLoadedXml = currentXml;
 let xmlInputDirty = false;
 let svgSourceXml;
 let previewUrl;
@@ -211,6 +212,14 @@ window.addEventListener("message", (event) => {
     clearTimer();
     xmlDownloadPending = false;
     editorReloadPending = undefined;
+
+    if (message.event === "load" && !diagramLoaded) {
+      syncXml(lastLoadedXml, true);
+      resetOutput();
+      resetEditor("図を読み込めなかったため、直前の図を復元しています…");
+      return;
+    }
+
     setEditorActionsDisabled(!diagramLoaded);
     setStatus(`draw.ioエラー: ${message.error}`, "error");
     return;
@@ -226,13 +235,19 @@ window.addEventListener("message", (event) => {
 
   if (message.event === "load") {
     diagramLoaded = true;
+    lastLoadedXml = currentXml;
     setEditorActionsDisabled(false);
     setStatus("図を編集できます。", "success");
     return;
   }
 
   if (message.event === "autosave" || message.event === "save") {
+    if (!diagramLoaded) {
+      return;
+    }
+
     if (syncXml(message.xml)) {
+      lastLoadedXml = currentXml;
       const svgWasStale = Boolean(svgSourceXml && svgSourceXml !== currentXml);
       if (svgWasStale) {
         resetOutput();
@@ -253,6 +268,7 @@ window.addEventListener("message", (event) => {
         if (!syncXml(message.data)) {
           throw new Error("draw.ioから編集内容を取得できませんでした。");
         }
+        lastLoadedXml = currentXml;
         if (xmlDownloadPending) {
           downloadText(currentXml, "application/xml", "diagram.drawio");
           setStatus("draw.ioファイルをダウンロードしました。", "success");
@@ -306,15 +322,23 @@ fileInput.addEventListener("change", async () => {
     return;
   }
 
-  const xml = await file.text();
-  if (!validateXml(xml)) {
-    setStatus("有効な.drawioファイルを選択してください。", "error");
-    return;
-  }
+  setEditorActionsDisabled(true);
 
-  syncXml(xml, true);
-  resetOutput();
-  loadDiagram(currentXml, `${file.name}を読み込んでいます…`);
+  try {
+    const xml = await file.text();
+    if (!validateXml(xml)) {
+      setEditorActionsDisabled(false);
+      setStatus("有効な.drawioファイルを選択してください。", "error");
+      return;
+    }
+
+    syncXml(xml, true);
+    resetOutput();
+    loadDiagram(currentXml, `${file.name}を読み込んでいます…`);
+  } catch {
+    setEditorActionsDisabled(false);
+    setStatus(`${file.name}を読み込めませんでした。`, "error");
+  }
 });
 
 newButton.addEventListener("click", () => {
