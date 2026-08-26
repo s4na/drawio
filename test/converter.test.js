@@ -3,9 +3,18 @@ import test from "node:test";
 
 import {
   buildDrawioUrl,
+  createBlankDiagram,
   decodeSvgDataUri,
+  looksLikeDrawioXml,
   parseEmbedMessage,
 } from "../public/converter.js";
+
+test("新規図として編集可能なdraw.io XMLを生成する", () => {
+  const xml = createBlankDiagram();
+  assert.equal(looksLikeDrawioXml(xml), true);
+  assert.match(xml, /<mxCell id="0"\/>/);
+  assert.match(xml, /<mxCell id="1" parent="0"\/>/);
+});
 
 test("JSON文字列のembedメッセージを解析する", () => {
   assert.deepEqual(parseEmbedMessage('{"event":"init"}'), { event: "init" });
@@ -16,6 +25,12 @@ test("オブジェクト形式のembedメッセージを受け入れる", () => 
   const message = { event: "load" };
   assert.equal(parseEmbedMessage(message), message);
   assert.equal(parseEmbedMessage(null), null);
+});
+
+test("draw.io XMLのルート要素を判定する", () => {
+  assert.equal(looksLikeDrawioXml("<mxfile><diagram /></mxfile>"), true);
+  assert.equal(looksLikeDrawioXml('<?xml version="1.0"?><mxGraphModel />'), true);
+  assert.equal(looksLikeDrawioXml("<svg />"), false);
 });
 
 test("URLエンコードされたSVG data URIを復号する", () => {

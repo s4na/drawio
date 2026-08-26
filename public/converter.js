@@ -1,5 +1,18 @@
 export const DRAWIO_ORIGIN = "https://embed.diagrams.net";
 
+export function createBlankDiagram() {
+  return `<mxfile host="embed.diagrams.net">
+  <diagram id="page-1" name="Page-1">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>`;
+}
+
 export function buildDrawioUrl(baseUrl, libraries) {
   const url = new URL(baseUrl);
   const selectedLibraries = [...new Set(libraries.filter(Boolean))];
@@ -23,6 +36,16 @@ export function parseEmbedMessage(value) {
   }
 
   return value && typeof value === "object" ? value : null;
+}
+
+export function looksLikeDrawioXml(value) {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const xml = value.trim();
+  return /^<\?xml(?:\s[^>]*)?\?>\s*<(?:mxfile|mxGraphModel)\b/i.test(xml)
+    || /^<(?:mxfile|mxGraphModel)\b/i.test(xml);
 }
 
 export function decodeSvgDataUri(dataUri) {

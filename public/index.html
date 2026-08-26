@@ -7,35 +7,36 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; frame-src https://embed.diagrams.net; connect-src 'none'; font-src 'self'; base-uri 'none'; form-action 'none'"
     >
-    <meta name="description" content="draw.io XMLをブラウザ内でSVGへ変換します。">
-    <title>draw.io SVG Converter</title>
+    <meta name="description" content="ブラウザ上でdraw.ioの図を作成し、.drawioとSVGへ書き出します。">
+    <title>draw.io Browser Editor</title>
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
     <main class="shell">
       <header class="hero">
         <p class="eyebrow">Browser utility</p>
-        <h1>draw.io → SVG</h1>
-        <p class="lead">編集可能なdraw.io XMLを貼り付けて、README向けのSVGを生成します。</p>
+        <h1>draw.io editor</h1>
+        <p class="lead">ブラウザ上で図を配置・編集し、編集可能な.drawioファイルとSVGを書き出せます。</p>
       </header>
 
-      <section class="panel" aria-labelledby="input-heading">
-        <div class="section-heading">
+      <section class="panel editor-panel" aria-labelledby="editor-heading">
+        <div class="section-heading editor-heading">
           <div>
             <p class="step">01</p>
-            <h2 id="input-heading">draw.io XML</h2>
+            <h2 id="editor-heading">図を作成・編集</h2>
           </div>
-          <button id="clear-button" class="button button-quiet" type="button">クリア</button>
+          <div class="button-row">
+            <button id="new-button" class="button button-quiet" type="button" disabled>新規</button>
+            <button id="template-button" class="button button-quiet" type="button" disabled>テンプレート</button>
+            <label class="button button-quiet file-button" for="file-input">.drawioを開く</label>
+            <input id="file-input" class="sr-only" type="file" accept=".drawio,.xml,application/xml,text/xml">
+            <button id="download-drawio-button" class="button button-quiet" type="button" disabled>.drawio保存</button>
+            <button id="export-svg-button" class="button button-primary" type="button" disabled>SVG書き出し</button>
+          </div>
         </div>
-        <label class="sr-only" for="xml-input">変換するdraw.io XML</label>
-        <textarea
-          id="xml-input"
-          spellcheck="false"
-          placeholder="&lt;mxfile&gt;...&lt;/mxfile&gt;"
-          autocomplete="off"
-        ></textarea>
+
         <fieldset class="options">
-          <legend>変換オプション</legend>
+          <legend>エディタ・書き出しオプション</legend>
           <label class="option">
             <input id="library-aws" type="checkbox" checked>
             AWSアイコン
@@ -48,23 +49,45 @@
             <input id="embed-images" type="checkbox" checked>
             外部画像をSVGへ埋め込む
           </label>
-          <p class="option-help">
-            AWSとGoogle Cloudはdraw.io公式ライブラリを読み込みます。外部画像は取得先が許可する場合にデータとして埋め込まれます。
-          </p>
         </fieldset>
-        <div class="actions">
-          <button id="convert-button" class="button button-primary" type="button" disabled>
-            SVGに変換
-          </button>
+
+        <iframe
+          id="drawio-frame"
+          class="drawio-frame"
+          title="draw.ioエディタ"
+          data-src="https://embed.diagrams.net/?embed=1&proto=json&spin=1&libraries=1&saveAndExit=0&noExitBtn=1&dark=0"
+        ></iframe>
+
+        <div class="status-row">
           <p id="status" class="status" role="status" aria-live="polite">draw.ioを準備しています…</p>
           <button id="retry-button" class="button button-quiet" type="button" hidden>再接続</button>
         </div>
       </section>
 
+      <section class="panel" aria-labelledby="source-heading">
+        <details>
+          <summary>
+            <span>
+              <span class="step">02</span>
+              <span id="source-heading" class="summary-title">draw.io XML</span>
+            </span>
+            <span class="summary-help">生成済みXMLの読込や確認に使用</span>
+          </summary>
+          <div class="source-content">
+            <p class="help">エディタの変更はここへ自動同期されます。XMLを直接貼り付けた場合は、エディタへ読み込んでから配置を確認できます。</p>
+            <label class="sr-only" for="xml-input">draw.io XML</label>
+            <textarea id="xml-input" spellcheck="false" autocomplete="off"></textarea>
+            <div class="actions">
+              <button id="load-xml-button" class="button button-quiet" type="button">エディタへ読み込む</button>
+            </div>
+          </div>
+        </details>
+      </section>
+
       <section class="panel" aria-labelledby="output-heading">
         <div class="section-heading">
           <div>
-            <p class="step">02</p>
+            <p class="step">03</p>
             <h2 id="output-heading">SVG</h2>
           </div>
           <div class="button-row">
@@ -72,7 +95,7 @@
             <button id="download-button" class="button button-quiet" type="button" disabled>ダウンロード</button>
           </div>
         </div>
-        <div id="preview-empty" class="preview-empty">変換後のプレビューがここに表示されます。</div>
+        <div id="preview-empty" class="preview-empty">エディタ上部の「SVG書き出し」でプレビューを生成します。</div>
         <img id="preview" class="preview" alt="生成したSVGのプレビュー" hidden>
         <label class="sr-only" for="svg-output">生成したSVG</label>
         <textarea id="svg-output" class="output" readonly spellcheck="false" placeholder="&lt;svg&gt;...&lt;/svg&gt;"></textarea>
@@ -80,21 +103,12 @@
 
       <footer>
         <p>
-          入力内容はこのGitHub Pagesサイトへ送信されません。変換には公式の
+          図の編集と変換には公式の
           <a href="https://embed.diagrams.net" target="_blank" rel="noreferrer">draw.io埋め込みエディタ</a>
-          を使用します。
+          を使用します。GitHub Pagesのサーバーへ図の内容は保存しません。
         </p>
       </footer>
     </main>
-
-    <iframe
-      id="drawio-frame"
-      class="drawio-frame"
-      title="draw.io変換エンジン"
-      aria-hidden="true"
-      tabindex="-1"
-      data-src="https://embed.diagrams.net/?embed=1&proto=json&spin=1&libraries=1&saveAndExit=0&noSaveBtn=1&noExitBtn=1&dark=0"
-    ></iframe>
 
     <script type="module" src="./app.js"></script>
   </body>
