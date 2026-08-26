@@ -130,6 +130,7 @@ function beginTimeout() {
 function beginLoadTimeout() {
   clearTimer();
   timeoutId = window.setTimeout(() => {
+    clearUnsavedOnNextLoad = false;
     syncXml(lastLoadedXml);
     resetOutput();
     resetEditor("図の読み込みがタイムアウトしたため、直前の図を復元しています…");
@@ -279,6 +280,19 @@ window.addEventListener("message", (event) => {
     return;
   }
 
+  if (message.event === "template") {
+    if (!syncXml(message.xml, true)) {
+      setStatus("選択したテンプレートを読み込めませんでした。", "error");
+      return;
+    }
+
+    clearUnsavedOnNextLoad = false;
+    hasUnsavedChanges = true;
+    resetOutput();
+    loadDiagram(currentXml, "テンプレートを読み込んでいます…");
+    return;
+  }
+
   if (message.event === "autosave" || message.event === "save") {
     if (!diagramLoaded) {
       return;
@@ -418,7 +432,7 @@ templateButton.addEventListener("click", () => {
     return;
   }
 
-  postToDrawio({ action: "template", noExitOnCancel: true });
+  postToDrawio({ action: "template", callback: true, noExitOnCancel: true });
 });
 
 downloadDrawioButton.addEventListener("click", () => {
