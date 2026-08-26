@@ -488,7 +488,7 @@ downloadButton.addEventListener("click", () => {
 });
 
 window.addEventListener("beforeunload", (event) => {
-  if (hasUnsavedChanges || xmlInputDirty) {
+  if (hasUnsavedChanges || xmlInputDirty || pendingUnsavedState === true) {
     event.preventDefault();
     event.returnValue = "";
   }
