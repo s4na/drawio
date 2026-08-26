@@ -1,5 +1,6 @@
 import {
   DRAWIO_ORIGIN,
+  buildDrawioUrl,
   decodeSvgDataUri,
   parseEmbedMessage,
 } from "./converter.js";
@@ -15,6 +16,9 @@ const downloadButton = document.querySelector("#download-button");
 const preview = document.querySelector("#preview");
 const previewEmpty = document.querySelector("#preview-empty");
 const status = document.querySelector("#status");
+const awsLibraryCheckbox = document.querySelector("#library-aws");
+const gcpLibraryCheckbox = document.querySelector("#library-gcp");
+const embedImagesCheckbox = document.querySelector("#embed-images");
 
 let editorReady = false;
 let conversionPending = false;
@@ -25,6 +29,17 @@ let initializationTimeoutId;
 function setStatus(message, kind = "idle") {
   status.textContent = message;
   status.dataset.kind = kind;
+}
+
+function selectedLibraries() {
+  return [
+    awsLibraryCheckbox.checked && "aws4",
+    gcpLibraryCheckbox.checked && "gcp2",
+  ].filter(Boolean);
+}
+
+function buildEditorUrl() {
+  return buildDrawioUrl(frame.dataset.src, selectedLibraries());
 }
 
 function postToDrawio(message) {
@@ -66,6 +81,7 @@ function resetEditor(message = "draw.ioへ再接続しています…") {
   const replacement = frame.cloneNode();
   frame.replaceWith(replacement);
   frame = replacement;
+  frame.src = buildEditorUrl();
 
   setStatus(message);
   beginInitializationTimeout();
@@ -174,7 +190,7 @@ convertButton.addEventListener("click", () => {
     format: "svg",
     xml,
     border: 8,
-    embedImages: true,
+    embedImages: embedImagesCheckbox.checked,
   });
 });
 
@@ -198,6 +214,13 @@ clearButton.addEventListener("click", () => {
 retryButton.addEventListener("click", () => {
   resetEditor();
 });
+
+for (const checkbox of [awsLibraryCheckbox, gcpLibraryCheckbox]) {
+  checkbox.addEventListener("change", () => {
+    resetOutput();
+    resetEditor("クラウドアイコンライブラリを読み込み直しています…");
+  });
+}
 
 copyButton.addEventListener("click", async () => {
   try {
@@ -229,5 +252,5 @@ window.addEventListener("beforeunload", () => {
   }
 });
 
-frame.src = frame.dataset.src;
+frame.src = buildEditorUrl();
 beginInitializationTimeout();

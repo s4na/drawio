@@ -120,6 +120,45 @@ a:focus-visible {
   margin-top: 18px;
 }
 
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin: 16px 0 0;
+  border: 0;
+  padding: 0;
+}
+
+.options legend {
+  width: 100%;
+  margin-bottom: 8px;
+  color: #536056;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #314735;
+  font-size: 0.9rem;
+}
+
+.option input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #244b2e;
+}
+
+.option-help {
+  flex-basis: 100%;
+  margin: 0;
+  color: #687269;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
 .actions {
   margin-top: 16px;
 }
