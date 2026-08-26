@@ -103,17 +103,6 @@ window.addEventListener("message", (event) => {
     return;
   }
 
-  if (message.event === "load") {
-    postToDrawio({
-      action: "export",
-      format: "svg",
-      border: 8,
-      embedImages: true,
-    });
-    setStatus("SVGを書き出しています…");
-    return;
-  }
-
   if (message.event === "export") {
     try {
       showSvg(decodeSvgDataUri(message.data));
@@ -147,20 +136,23 @@ convertButton.addEventListener("click", () => {
   resetOutput();
   conversionPending = true;
   convertButton.disabled = true;
-  setStatus("draw.ioで図を読み込んでいます…");
+  setStatus("SVGを書き出しています…");
   beginTimeout();
   postToDrawio({
-    action: "load",
+    action: "export",
+    format: "svg",
     xml,
-    autosave: 0,
-    modified: false,
-    title: "SVG export",
+    border: 8,
+    embedImages: true,
   });
 });
 
 clearButton.addEventListener("click", () => {
+  clearTimer();
+  conversionPending = false;
   xmlInput.value = "";
   resetOutput();
+  convertButton.disabled = !editorReady;
   setStatus(editorReady ? "変換できます。" : "draw.ioを準備しています…", editorReady ? "success" : "idle");
   xmlInput.focus();
 });
@@ -171,8 +163,11 @@ copyButton.addEventListener("click", async () => {
     setStatus("SVGをクリップボードへコピーしました。", "success");
   } catch {
     svgOutput.select();
-    document.execCommand("copy");
-    setStatus("SVGをクリップボードへコピーしました。", "success");
+    if (document.execCommand("copy")) {
+      setStatus("SVGをクリップボードへコピーしました。", "success");
+    } else {
+      setStatus("コピーできませんでした。SVGを選択して手動でコピーしてください。", "error");
+    }
   }
 });
 
