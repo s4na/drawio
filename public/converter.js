@@ -38,6 +38,49 @@ export function parseEmbedMessage(value) {
   return value && typeof value === "object" ? value : null;
 }
 
+export function decodeXmlExportPayload(value) {
+  if (typeof value !== "string" || value.length === 0) {
+    return null;
+  }
+
+  if (/^\s*</.test(value)) {
+    return value;
+  }
+
+  const separator = value.indexOf(",");
+  if (/^data:/i.test(value) && separator >= 0) {
+    const metadata = value.slice(0, separator);
+    const payload = value.slice(separator + 1);
+    try {
+      if (/;base64(?:;|$)/i.test(metadata)) {
+        const bytes = Uint8Array.from(atob(payload), (character) => character.charCodeAt(0));
+        const decoded = new TextDecoder().decode(bytes);
+        if (/^\s*</.test(decoded)) {
+          return decoded;
+        }
+      } else {
+        const decoded = decodeURIComponent(payload);
+        if (/^\s*</.test(decoded)) {
+          return decoded;
+        }
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    const decoded = decodeURIComponent(value);
+    if (/^\s*</.test(decoded)) {
+      return decoded;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 export function decodeSvgDataUri(dataUri) {
   if (typeof dataUri !== "string" || !dataUri.startsWith("data:image/svg+xml")) {
     throw new Error("draw.ioからSVGデータを取得できませんでした。");
