@@ -34,7 +34,7 @@ let lastLoadedXml = currentXml;
 let activeLibraries = selectedLibraries();
 let xmlInputDirty = false;
 let hasUnsavedChanges = false;
-let clearUnsavedOnNextLoad = false;
+let pendingUnsavedState;
 let svgSourceXml;
 let previewUrl;
 let timeoutId;
@@ -130,7 +130,7 @@ function beginTimeout() {
 function beginLoadTimeout() {
   clearTimer();
   timeoutId = window.setTimeout(() => {
-    clearUnsavedOnNextLoad = false;
+    pendingUnsavedState = undefined;
     syncXml(lastLoadedXml);
     resetOutput();
     resetEditor("図の読み込みがタイムアウトしたため、直前の図を復元しています…");
@@ -246,7 +246,7 @@ window.addEventListener("message", (event) => {
     editorReloadPending = undefined;
 
     if (message.event === "load" && !diagramLoaded) {
-      clearUnsavedOnNextLoad = false;
+      pendingUnsavedState = undefined;
       syncXml(lastLoadedXml);
       resetOutput();
       resetEditor("図を読み込めなかったため、直前の図を復元しています…");
@@ -271,9 +271,9 @@ window.addEventListener("message", (event) => {
     diagramLoaded = true;
     lastLoadedXml = currentXml;
     activeLibraries = selectedLibraries();
-    if (clearUnsavedOnNextLoad) {
-      hasUnsavedChanges = false;
-      clearUnsavedOnNextLoad = false;
+    if (pendingUnsavedState !== undefined) {
+      hasUnsavedChanges = pendingUnsavedState;
+      pendingUnsavedState = undefined;
     }
     setEditorActionsDisabled(false);
     setStatus("図を編集できます。", "success");
@@ -286,8 +286,7 @@ window.addEventListener("message", (event) => {
       return;
     }
 
-    clearUnsavedOnNextLoad = false;
-    hasUnsavedChanges = true;
+    pendingUnsavedState = true;
     resetOutput();
     loadDiagram(currentXml, "テンプレートを読み込んでいます…");
     return;
@@ -376,7 +375,7 @@ loadXmlButton.addEventListener("click", () => {
 
   currentXml = xml;
   xmlInputDirty = false;
-  hasUnsavedChanges = true;
+  pendingUnsavedState = true;
   resetOutput();
   loadDiagram(currentXml, "XMLをdraw.ioエディタへ読み込んでいます…");
 });
@@ -407,7 +406,7 @@ fileInput.addEventListener("change", async () => {
     }
 
     syncXml(xml, true);
-    clearUnsavedOnNextLoad = true;
+    pendingUnsavedState = false;
     resetOutput();
     loadDiagram(currentXml, `${file.name}を読み込んでいます…`);
   } catch {
@@ -422,7 +421,7 @@ newButton.addEventListener("click", () => {
   }
 
   syncXml(createBlankDiagram(), true);
-  clearUnsavedOnNextLoad = true;
+  pendingUnsavedState = false;
   resetOutput();
   loadDiagram(currentXml, "新しい図を作成しています…");
 });
